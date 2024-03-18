@@ -16,8 +16,8 @@ Specs:
 
 | Working?      |     | Notes                                                    |
 | ------------- |:---:| --------------------------------------------------------:|
-| Audio         | ✅   | `snd_soc_sof_es8336 quirk=0x02` must be added in modprobe.d |
-| Touchscreen   | 🚧   | probe of i2c-GDIX1002:00 failed with error -5         |
+| Audio         | ✅  | `snd_soc_sof_es8336 quirk=0x02` must be added in modprobe.d |
+| Touchscreen   | 🔧  | FIX WIP         |
 | Mouse         | 🚧  | Still not satisfied with the remapping                   |
 | GRUB portrait | 🚧  | GRUB option `fbcon` ignored for menu but the rest is not |
 | Laptop lid    | ❔   | Seems to work but locks up with `i3lock`                 |
