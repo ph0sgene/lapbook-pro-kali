@@ -23,7 +23,7 @@ Verified 2026-11-13 on kernel **6.16.8+kali-amd64**.
 | ------------- |:---:| --- |
 | Audio         | ✅  | modprobe quirk below |
 | Touchscreen   | ✅  | Upstream fixed; Xorg config below |
-| Mouse nib     | ⚙️  | Works out of the box; button remap is optional preferences |
+| Mouse nib     | ⚙️  | Moves the cursor out of the box, but it has **no hardware buttons** — remapping two keyboard keys below is required to click |
 | GRUB portrait | 🚧  | Unfixable upstream; hide the menu or use Limine |
 | Laptop lid    | ✅  | Locks on lid per logind config |
 
@@ -94,13 +94,15 @@ exists, so framebuffer rotation can't reach it. Options:
 
 ## Mouse nib (HTIX5288)
 
-Registers as mouse + hotkeys and works out of the box on current kernels.
-If you want a custom feel: the two buttons are actually keyboard keys:
+Registers as mouse + hotkeys on current kernels and moves the cursor fine —
+but the nib itself has **no hardware buttons**. The only buttons are two
+keyboard keys shipped next to it, and you must bind them to get clicks:
 
 - `KP_Begin` (keycode 84 / `0xFF9D`) = left click
 - `MENU` (keycode 117 / `0xFF67`) = right click
 
-Remap with `input-remapper` or `xmodmap`/`xdotool` as preferred.
+Remap with `input-remapper` (recommended on modern stack) or
+`xmodmap`/`xdotool` as preferred.
 
 ## Archaeology (2023 era)
 
