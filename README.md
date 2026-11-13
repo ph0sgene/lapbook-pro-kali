@@ -1,104 +1,53 @@
 # lapbook-pro-kali
-This is a collection of files / scripts for helping users with their generic 7 inch mini laptop from some obscure chinese company. 
 
-In theory, this should work just fine for debian and ubuntu or any other *nix distribution.
+Files and notes for the generic 7-inch mini laptop (no-name Chinese OEM,
+"LapBook Pro"-class). Applies to any modern *nix distro; Kali used here.
 
-Specs:
-- CPU: Intel(R) Celeron(R) J4105 CPU @ 1.50GHz Gemini Lake
-- Memory: ABCD 12GB @ 2133 Hhz LPDDR4
-- HDD: ShiJi 512GB
-- MB: Default string Default string 2.1. To Be Filled By O.E.M.
-- WIFI: Intel Corporation Wireless 3165 (rev 81)
-- GPU: Intel Corporation GeminiLake [UHD Graphics 600] (rev 03)
-- CAM: Sunplus Innovation Technology Inc. SPCA2281 Web Camera
+Verified 2026-11-13 on kernel **6.16.8+kali-amd64**.
 
-## Issues
+## Specs
 
-| Working?      |     | Notes                                                    |
-| ------------- |:---:| --------------------------------------------------------:|
-| Audio         | ✅  | `snd_soc_sof_es8336 quirk=0x02` still required on boards like this one — mainline defaults `quirk=0` for unidentifiable generic-DMI boards and can't know this chassis needs speaker-GPIO quirks; the modprobe.d option IS the correct permanent fix (verified active & working on 6.16.8) |
-| Touchscreen   | ✅  | Fixed upstream in 6.x kernels; Xorg layer needed the manual fix below (see bottom) |
-| Mouse (nib)   | ⚙️  | HTIX5288 registers cleanly on current kernels (mouse + hotkeys nodes). "Unsatisfied with remap" is ergonomics/personal xorg config, not a kernel defect — device works out of the box |
-| GRUB portrait | 🚧  | Genuinely unfixable upstream: the GRUB menu runs before any kernel subsystem exists, so `fbcon` can't reach it. Accepted mitigation: `GRUB_TIMEOUT_STYLE=hidden` (menu via key-hold). Limine supports `interface_rotation: 90` natively if you actually want a rotated menu |
-| Laptop lid    | ❔  | `HandleLidSwitch=lock` configured. The historical i3lock hang was i3-wm-era; the active DE uses its own locker now |
+- CPU: Intel Celeron J4105 @ 1.50 GHz (Gemini Lake)
+- RAM: 12 GB LPDDR4 @ 2133 MHz
+- SSD: 512 GB
+- Board: "Default string / To Be Filled By O.E.M." (generic DMI)
+- Wi-Fi: Intel Wireless 3165
+- GPU: Gemini Lake UHD Graphics 600
+- Camera: Sunplus SPCA2281
+- Touch screen: Goodix GDIX1002 (I2C)
+- Nib: HTIX5288 (I2C HID)
 
-*Matrix verified 2026-11-13 against kernel 6.16.8+kali-amd64 — original issues were filed against 2023-era kernels.*
+## Overview
 
-## Stuck in portrait mode? 
-`xrandr -o right` 
+| Working?      |     | Fix |
+| ------------- |:---:| --- |
+| Audio         | ✅  | modprobe quirk below |
+| Touchscreen   | ✅  | Upstream fixed; Xorg config below |
+| Mouse nib     | ⚙️  | Works out of the box; button remap is optional preferences |
+| GRUB portrait | 🚧  | Unfixable upstream; hide the menu or use Limine |
+| Laptop lid    | ✅  | Locks on lid per logind config |
 
-## Mouse not working?
-The mouse buttons are actually KEYBOARD KEYS. They will have to be macro'd:
-
-- `KP_Begin` => left click 
-- `MENU` => right click
-
-You can use either `input-remapper` or `xdotool`. 
-
-The keycode for `KP_Begin` is `84` and `xmodmap` key `0xFF9D`.
-
-The keycode for `MENU` is  `117` and `xmodmap` key `0xFF67`.
-
-The mouse nib itself is an `HTIX5288` which is known to have problems as of kernel 5.4.
-
-## Whats the Kernel?
-A PATCH FOR THE KERNEL IS BEING WORKED ON TO FIX THE TOUCHSCREEN! SOURCE [HERE](https://forums.linuxmint.com/viewtopic.php?t=403825)
-## Audio 
-- Ensure `alsamixer`, `aplay` and `firmware-sof-signed` are installed. 
-- Mess arounc with pulse settings (in xfce or something). Make sure theyre all up and not muted
-- Terminal > `echo "options snd_soc_sof_es8336 quirk=0x02" >> /etc/modprobe.d/alsa-base.conf`
-- Reboot
-- Run `alsamixer -c 0`
-- Mess with the sliders until you hear audio. Mostly the `Speakers` slider
-
-# Touchscreen
-Identified as Goodix Capacitive TouchScreen GDIX1002. 
+## Audio
 
 ```sh
-[   11.640471] Goodix-TS i2c-GDIX1002:00: supply AVDD28 not found, using dummy regulator
-[   11.640560] Goodix-TS i2c-GDIX1002:00: supply VDDIO not found, using dummy regulator
-[   11.640644] Goodix-TS i2c-GDIX1002:00: Unexpected ACPI resources: gpio_count 1, gpio_int_idx 0
-[   11.841245] Goodix-TS i2c-GDIX1002:00: ID 911, version: 1060
-[   11.930999] input: Goodix Capacitive TouchScreen as /devices/pci0000:00/0000:00:17.0/i2c_designware.4/i2c-5/i2c-GDIX1002:00/input/input8
-[   11.944029] Goodix-TS i2c-GDIX1002:00: request IRQ failed: -5
-[   12.106752] Goodix-TS: probe of i2c-GDIX1002:00 failed with error -5
+echo "options snd_soc_sof_es8336 quirk=0x02" | sudo tee -a /etc/modprobe.d/alsa-base.conf
 ```
 
-## Resolution (verified 2026 on Kali 2025.x, kernel 6.16.8)
+Reboot, run `alsamixer -c 0`, raise the `Speakers` slider.
 
-**You do not need a custom kernel anymore.** The GPIO/IRQ fix that originally
-unblocked this probe was upstreamed years ago — on kernel 6.16.8 (and anything
-recent) the GDIX1002 probes cleanly on its own:
+This quirk is not upstreamable: mainline defaults to `quirk=0` for boards with
+generic DMI strings (like this one) and cannot know which GPIO your OEM used for
+the speaker amp. The line above is the correct permanent fix.
 
-```sh
-[   14.077270] Goodix-TS i2c-GDIX1002:00: supply AVDD28 not found, using dummy regulator
-[   14.248593] Goodix-TS i2c-GDIX1002:00: ID 911, version: 1060
-[   14.372182] input: Goodix Capacitive TouchScreen as /devices/pci0000:00/0000:00:17.0/i2c_designware.4/i2c-4/i2c-GDIX1002:00/input/input8
-```
+## Touchscreen (Goodix GDIX1002)
 
-The bug that THEN bites instead, and the one that actually looked like
-"the touchscreen doesn't work," lives in the X layer:
+On current kernels the driver probes cleanly out of the box — the old
+`request IRQ failed: -5` probe failure was fixed upstream years ago. What still
+breaks on a fresh install is the X layer: the device starts as a disabled
+*floating slave* (not attached to the pointer), and touch coordinates don't
+track the rotated display.
 
-1. `xinput --list` shows the device as a **floating slave** — touches don't drive
-   the pointer until it's attached to the master.
-2. `xinput --list-props <id>` shows **`Device Enabled: 0`** — X never attached it,
-   so it sat fully disabled.
-3. Even enabled, the panel is rotated (`xrandr` says `right` on a portrait-origin
-   panel), so raw touch coordinates do not match the rotated display without
-   a transformation matrix.
-
-The live fix:
-
-```sh
-DISPLAY=:0 xinput --enable <id>
-DISPLAY=:0 xinput reattach <id> 2
-DISPLAY=:0 xinput --set-prop <id> "Coordinate Transformation Matrix" 0 1 0 -1 0 1 0 0 1
-```
-
-(`0 1 0 -1 0 1 0 0 1` is the matrix for "right"-rotated display. Use the matching
-matrix for whichever rotation you chose.)
-
-**Persistence (works at the LightDM greeter too):**
+Persist the whole fix in one file:
 
 ```sh
 sudo tee /etc/X11/xorg.conf.d/99-goodix-touch.conf <<'EOF'
@@ -110,10 +59,56 @@ EndSection
 EOF
 ```
 
-After that, the device attaches enabled at every X server start (greeter included)
-and the coordinates match the rotated screen.
+The matrix shown matches a `right`-rotated display (the panel is portrait
+origin, you probably want landscape). Use the matching matrix for your rotation.
+Works everywhere X runs, including the LightDM greeter, from next boot.
 
-> Historical note: the `KERNEL/goodix.patch` in this repo (Hans de Goede's GPIO
-> mapping fix) was the necessary fix for the 5.x/6.3-era probe failure above, and
-> `vmlinuz-6.3.7-fbcon-goodix-beantop` is still in /boot. No longer required —
-> but preserved, because archaeology is real even when it isn't needed.
+Live, one-shot, for the currently running session:
+
+```sh
+DISPLAY=:0 xinput --enable "Goodix Capacitive TouchScreen"
+DISPLAY=:0 xinput reattach "Goodix Capacitive TouchScreen" 2
+DISPLAY=:0 xinput --set-prop "Goodix Capacitive TouchScreen" "Coordinate Transformation Matrix" 0 1 0 -1 0 1 0 0 1
+```
+
+## Screen orientation
+
+The panel is portrait; you want landscape:
+
+```sh
+xrandr -o right
+```
+
+Add `video=DSI-1:panel_orientation=right_side_up fbcon=rotate:1` to the kernel
+cmdline if you want the console and boot sequence rotated too.
+
+## GRUB menu is portrait
+
+**Cannot be fixed.** The GRUB2 menu renders before any kernel subsystem
+exists, so framebuffer rotation can't reach it. Options:
+
+- Hide it: `GRUB_TIMEOUT_STYLE=hidden` + `GRUB_TIMEOUT=0` in
+  `/etc/default/grub`, then `sudo update-grub`. Hold Shift/Esc at boot to
+  summon the menu when you need a snapshot.
+- Or install Limine, which supports `interface_rotation: 90` natively.
+
+## Mouse nib (HTIX5288)
+
+Registers as mouse + hotkeys and works out of the box on current kernels.
+If you want a custom feel: the two buttons are actually keyboard keys:
+
+- `KP_Begin` (keycode 84 / `0xFF9D`) = left click
+- `MENU` (keycode 117 / `0xFF67`) = right click
+
+Remap with `input-remapper` or `xmodmap`/`xdotool` as preferred.
+
+## Archaeology (2023 era)
+
+- `KERNEL/goodix.patch` — Hans de Goede's GPIO workaround for the
+  5.x–6.3-era probe failure (`request IRQ failed: -5`). Upstreamed long
+  since; kept for history, no longer needed.
+- `KERNEL/menuconfig` — config used for the one custom kernel built for
+  this campaign (`vmlinuz-6.3.7-fbcon-goodix-beantop`, still in /boot of
+  the original machine, moot).
+- The pre-2026 maintenance notes described the touchscreen as "FIX WIP".
+  That saga is extinct: kernel probes it, Xorg is the whole story now.
