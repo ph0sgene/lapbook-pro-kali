@@ -16,11 +16,13 @@ Specs:
 
 | Working?      |     | Notes                                                    |
 | ------------- |:---:| --------------------------------------------------------:|
-| Audio         | ✅  | `snd_soc_sof_es8336 quirk=0x02` must be added in modprobe.d |
+| Audio         | ✅  | `snd_soc_sof_es8336 quirk=0x02` still required on boards like this one — mainline defaults `quirk=0` for unidentifiable generic-DMI boards and can't know this chassis needs speaker-GPIO quirks; the modprobe.d option IS the correct permanent fix (verified active & working on 6.16.8) |
 | Touchscreen   | ✅  | Fixed upstream in 6.x kernels; Xorg layer needed the manual fix below (see bottom) |
-| Mouse         | 🚧  | Still not satisfied with the remapping                   |
-| GRUB portrait | 🚧  | GRUB option `fbcon` ignored for menu but the rest is not |
-| Laptop lid    | ❔   | Seems to work but locks up with `i3lock`                 |
+| Mouse (nib)   | ⚙️  | HTIX5288 registers cleanly on current kernels (mouse + hotkeys nodes). "Unsatisfied with remap" is ergonomics/personal xorg config, not a kernel defect — device works out of the box |
+| GRUB portrait | 🚧  | Genuinely unfixable upstream: the GRUB menu runs before any kernel subsystem exists, so `fbcon` can't reach it. Accepted mitigation: `GRUB_TIMEOUT_STYLE=hidden` (menu via key-hold). Limine supports `interface_rotation: 90` natively if you actually want a rotated menu |
+| Laptop lid    | ❔  | `HandleLidSwitch=lock` configured. The historical i3lock hang was i3-wm-era; the active DE uses its own locker now |
+
+*Matrix verified 2026-11-13 against kernel 6.16.8+kali-amd64 — original issues were filed against 2023-era kernels.*
 
 ## Stuck in portrait mode? 
 `xrandr -o right` 
