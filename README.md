@@ -17,7 +17,7 @@ Specs:
 | Working?      |     | Notes                                                    |
 | ------------- |:---:| --------------------------------------------------------:|
 | Audio         | ✅  | `snd_soc_sof_es8336 quirk=0x02` must be added in modprobe.d |
-| Touchscreen   | 🔧  | FIX WIP         |
+| Touchscreen   | ✅  | Fixed upstream in 6.x kernels; Xorg layer needed the manual fix below (see bottom) |
 | Mouse         | 🚧  | Still not satisfied with the remapping                   |
 | GRUB portrait | 🚧  | GRUB option `fbcon` ignored for menu but the rest is not |
 | Laptop lid    | ❔   | Seems to work but locks up with `i3lock`                 |
@@ -61,3 +61,57 @@ Identified as Goodix Capacitive TouchScreen GDIX1002.
 [   11.944029] Goodix-TS i2c-GDIX1002:00: request IRQ failed: -5
 [   12.106752] Goodix-TS: probe of i2c-GDIX1002:00 failed with error -5
 ```
+
+## Resolution (verified 2026 on Kali 2025.x, kernel 6.16.8)
+
+**You do not need a custom kernel anymore.** The GPIO/IRQ fix that originally
+unblocked this probe was upstreamed years ago — on kernel 6.16.8 (and anything
+recent) the GDIX1002 probes cleanly on its own:
+
+```sh
+[   14.077270] Goodix-TS i2c-GDIX1002:00: supply AVDD28 not found, using dummy regulator
+[   14.248593] Goodix-TS i2c-GDIX1002:00: ID 911, version: 1060
+[   14.372182] input: Goodix Capacitive TouchScreen as /devices/pci0000:00/0000:00:17.0/i2c_designware.4/i2c-4/i2c-GDIX1002:00/input/input8
+```
+
+The bug that THEN bites instead, and the one that actually looked like
+"the touchscreen doesn't work," lives in the X layer:
+
+1. `xinput --list` shows the device as a **floating slave** — touches don't drive
+   the pointer until it's attached to the master.
+2. `xinput --list-props <id>` shows **`Device Enabled: 0`** — X never attached it,
+   so it sat fully disabled.
+3. Even enabled, the panel is rotated (`xrandr` says `right` on a portrait-origin
+   panel), so raw touch coordinates do not match the rotated display without
+   a transformation matrix.
+
+The live fix:
+
+```sh
+DISPLAY=:0 xinput --enable <id>
+DISPLAY=:0 xinput reattach <id> 2
+DISPLAY=:0 xinput --set-prop <id> "Coordinate Transformation Matrix" 0 1 0 -1 0 1 0 0 1
+```
+
+(`0 1 0 -1 0 1 0 0 1` is the matrix for "right"-rotated display. Use the matching
+matrix for whichever rotation you chose.)
+
+**Persistence (works at the LightDM greeter too):**
+
+```sh
+sudo tee /etc/X11/xorg.conf.d/99-goodix-touch.conf <<'EOF'
+Section "InputClass"
+    Identifier "goodix touch enable and rotate"
+    MatchProduct "Goodix Capacitive TouchScreen"
+    Option "TransformationMatrix" "0 1 0 -1 0 1 0 0 1"
+EndSection
+EOF
+```
+
+After that, the device attaches enabled at every X server start (greeter included)
+and the coordinates match the rotated screen.
+
+> Historical note: the `KERNEL/goodix.patch` in this repo (Hans de Goede's GPIO
+> mapping fix) was the necessary fix for the 5.x/6.3-era probe failure above, and
+> `vmlinuz-6.3.7-fbcon-goodix-beantop` is still in /boot. No longer required —
+> but preserved, because archaeology is real even when it isn't needed.
